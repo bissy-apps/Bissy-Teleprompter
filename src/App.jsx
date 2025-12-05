@@ -46,7 +46,7 @@ function App() {
       <header className="app-header">
         <h1>Bissy Teleprompter</h1>
         <div className="shortcuts-info">
-          Shortcuts: <kbd>Space</kbd> Play/Pause | <kbd>↑↓</kbd> Speed | <kbd>Esc</kbd> Reset
+          Shortcuts: <kbd>Space</kbd> Play/Pause | <kbd>↑↓</kbd> Speed | <kbd>←→</kbd> Jump 5 Lines | <kbd>Esc</kbd> Reset
         </div>
       </header>
       <div className="app-container">

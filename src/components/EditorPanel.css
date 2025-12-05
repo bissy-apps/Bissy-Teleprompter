@@ -16,6 +16,13 @@
   align-items: center;
 }
 
+.toolbar-divider {
+  width: 1px;
+  height: 30px;
+  background: #ccc;
+  margin: 0 5px;
+}
+
 .toolbar-group {
   display: flex;
   align-items: center;
@@ -74,6 +81,38 @@
 
 .pause-btn:hover {
   background: #45a049;
+}
+
+.file-btn {
+  padding: 6px 12px;
+  border: 1px solid #2196F3;
+  border-radius: 4px;
+  background: #2196F3;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.file-btn:hover {
+  background: #1976D2;
+  border-color: #1976D2;
+}
+
+.file-btn.clear-btn {
+  background: #f44336;
+  border-color: #f44336;
+}
+
+.file-btn.clear-btn:hover {
+  background: #da190b;
+  border-color: #da190b;
+}
+
+.file-actions {
+  gap: 8px;
 }
 
 .editor-content {

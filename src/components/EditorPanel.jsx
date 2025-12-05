@@ -15,6 +15,7 @@ function EditorPanel({ content, onContentChange, onFormatChange }) {
   const [fontFamily, setFontFamily] = useState('Arial');
   const [fontSize, setFontSize] = useState(24);
   const editorRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (editorRef.current && content !== editorRef.current.innerHTML) {
@@ -92,9 +93,169 @@ function EditorPanel({ content, onContentChange, onFormatChange }) {
     onFormatChange({ fontSize: size });
   };
 
+  const handleNewScript = () => {
+    if (confirm('Are you sure you want to clear the current script?')) {
+      onContentChange('');
+      if (editorRef.current) {
+        editorRef.current.innerHTML = '';
+      }
+    }
+  };
+
+  const handleOpenFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.txt')) {
+      alert('Please select a .txt file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      // Convert plain text to HTML with consistent Arial 24px formatting
+      const lines = text.split('\n');
+      const formattedHTML = lines
+        .map(line => `<div style="font-size: 24px; font-family: Arial;">${line || '<br>'}</div>`)
+        .join('');
+
+      onContentChange(formattedHTML);
+      if (editorRef.current) {
+        editorRef.current.innerHTML = formattedHTML;
+      }
+    };
+    reader.readAsText(file);
+
+    // Reset file input so the same file can be loaded again
+    e.target.value = '';
+  };
+
+  const handleSaveFile = () => {
+    if (!editorRef.current) return;
+
+    // Create a temporary container
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+
+    // Remove all pause markers
+    const pauseMarkers = tempDiv.querySelectorAll('.pause-marker');
+    pauseMarkers.forEach(marker => marker.remove());
+
+    const lines = [];
+
+    // Recursively process all nodes
+    const processNode = (node) => {
+      // Text node - just return the text
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent;
+      }
+
+      // Element node
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tagName = node.tagName.toLowerCase();
+
+        // Block-level elements create new lines
+        if (tagName === 'div' || tagName === 'p') {
+          let text = '';
+          for (const child of node.childNodes) {
+            text += processNode(child);
+          }
+          lines.push(text);
+          return '';
+        }
+
+        // BR creates an empty line
+        if (tagName === 'br') {
+          lines.push('');
+          return '';
+        }
+
+        // Inline elements - just process children
+        let text = '';
+        for (const child of node.childNodes) {
+          text += processNode(child);
+        }
+        return text;
+      }
+
+      return '';
+    };
+
+    // Process all top-level children
+    for (const child of tempDiv.childNodes) {
+      processNode(child);
+    }
+
+    // Join with newlines
+    let plainText = lines.join('\n');
+
+    // Clean up trailing whitespace on each line
+    plainText = plainText.split('\n').map(line => line.trimEnd()).join('\n');
+
+    // Create timestamp for filename
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timestamp = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+    const filename = `teleprompter-script_${timestamp}.txt`;
+
+    // Create blob and download
+    const blob = new Blob([plainText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClearScript = () => {
+    if (confirm('Are you sure you want to clear the script?')) {
+      onContentChange('');
+      if (editorRef.current) {
+        editorRef.current.innerHTML = '';
+      }
+    }
+  };
+
   return (
     <div className="editor-panel">
       <div className="editor-toolbar">
+        <div className="toolbar-group file-actions">
+          <button onClick={handleNewScript} className="file-btn" title="New Script">
+            📄 New
+          </button>
+          <button onClick={handleOpenFile} className="file-btn" title="Open .txt File">
+            📂 Open
+          </button>
+          <button onClick={handleSaveFile} className="file-btn" title="Save as .txt File">
+            💾 Save
+          </button>
+          <button onClick={handleClearScript} className="file-btn clear-btn" title="Clear Script">
+            🗑 Clear
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
+        </div>
+
+        <div className="toolbar-divider"></div>
+
         <div className="toolbar-group">
           <label>Font:</label>
           <select value={fontFamily} onChange={handleFontFamilyChange}>

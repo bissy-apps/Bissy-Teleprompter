@@ -15,17 +15,75 @@ function TeleprompterDisplay({ content }) {
   const pauseStartTimeRef = useRef(null);
   const currentPauseMarkerRef = useRef(null);
 
+  const togglePlayPause = () => {
+    setIsPaused((prevPaused) => {
+      if (prevPaused) {
+        // Resume from pause
+        pauseStartTimeRef.current = null;
+        currentPauseMarkerRef.current = null;
+        return false;
+      }
+      return prevPaused;
+    });
+
+    setIsPlaying((prevPlaying) => {
+      if (!prevPlaying) {
+        lastTimeRef.current = null;
+      }
+      return !prevPlaying;
+    });
+  };
+
+  const handleReset = () => {
+    setIsPlaying(false);
+    setIsPaused(false);
+    scrollPositionRef.current = 0;
+    lastTimeRef.current = null;
+    pauseStartTimeRef.current = null;
+    currentPauseMarkerRef.current = null;
+    setPauseTimeRemaining(0);
+    if (displayRef.current) {
+      displayRef.current.scrollTop = 0;
+    }
+  };
+
+  const jumpBackward = () => {
+    if (!displayRef.current) return;
+    const lineHeight = 24; // Approximate line height in pixels
+    const jumpAmount = lineHeight * 5; // 5 lines
+    scrollPositionRef.current = Math.max(0, scrollPositionRef.current - jumpAmount);
+    displayRef.current.scrollTop = scrollPositionRef.current;
+  };
+
+  const jumpForward = () => {
+    if (!displayRef.current) return;
+    const lineHeight = 24; // Approximate line height in pixels
+    const jumpAmount = lineHeight * 5; // 5 lines
+    const maxScroll = displayRef.current.scrollHeight - displayRef.current.clientHeight;
+    scrollPositionRef.current = Math.min(maxScroll, scrollPositionRef.current + jumpAmount);
+    displayRef.current.scrollTop = scrollPositionRef.current;
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.code === 'Space' && !e.target.isContentEditable) {
+      // Check if the target is the contentEditable editor
+      const isInEditor = e.target.getAttribute('contenteditable') === 'true';
+
+      if (e.code === 'Space' && !isInEditor) {
         e.preventDefault();
         togglePlayPause();
-      } else if (e.code === 'ArrowUp') {
+      } else if (e.code === 'ArrowUp' && !isInEditor) {
         e.preventDefault();
         setSpeed(prev => Math.min(prev + 10, 200));
-      } else if (e.code === 'ArrowDown') {
+      } else if (e.code === 'ArrowDown' && !isInEditor) {
         e.preventDefault();
         setSpeed(prev => Math.max(prev - 10, 10));
+      } else if (e.code === 'ArrowLeft' && !isInEditor) {
+        e.preventDefault();
+        jumpBackward();
+      } else if (e.code === 'ArrowRight' && !isInEditor) {
+        e.preventDefault();
+        jumpForward();
       } else if (e.code === 'Escape') {
         e.preventDefault();
         handleReset();
@@ -35,22 +93,6 @@ function TeleprompterDisplay({ content }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  useEffect(() => {
-    if (isPlaying && !isPaused) {
-      animate();
-    } else {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    }
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [isPlaying, isPaused, speed]);
 
   const checkForPauseMarker = () => {
     if (!contentRef.current || !displayRef.current) return null;
@@ -73,29 +115,75 @@ function TeleprompterDisplay({ content }) {
     return null;
   };
 
-  const animate = (currentTime) => {
-    if (!displayRef.current || !contentRef.current) return;
-
-    if (!lastTimeRef.current) {
-      lastTimeRef.current = currentTime;
-    }
-
-    const deltaTime = (currentTime - lastTimeRef.current) / 1000; // Convert to seconds
-    lastTimeRef.current = currentTime;
-
-    // Check for pause marker
-    const pauseInfo = checkForPauseMarker();
-    if (pauseInfo && pauseInfo.marker !== currentPauseMarkerRef.current) {
-      // New pause marker encountered
-      currentPauseMarkerRef.current = pauseInfo.marker;
-      pauseStartTimeRef.current = currentTime;
-      setPauseTimeRemaining(pauseInfo.duration);
-      setIsPaused(true);
+  useEffect(() => {
+    if (!isPlaying || isPaused) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
       return;
     }
 
-    // Handle pause countdown
-    if (isPaused && pauseStartTimeRef.current) {
+    let isActive = true;
+    lastTimeRef.current = null;
+
+    const animate = (currentTime) => {
+      if (!isActive || !displayRef.current || !contentRef.current) return;
+
+      if (!lastTimeRef.current) {
+        lastTimeRef.current = currentTime;
+        animationFrameRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      const deltaTime = (currentTime - lastTimeRef.current) / 1000; // Convert to seconds
+      lastTimeRef.current = currentTime;
+
+      // Check for pause marker
+      const pauseInfo = checkForPauseMarker();
+      if (pauseInfo && pauseInfo.marker !== currentPauseMarkerRef.current) {
+        // New pause marker encountered
+        currentPauseMarkerRef.current = pauseInfo.marker;
+        pauseStartTimeRef.current = currentTime;
+        setPauseTimeRemaining(pauseInfo.duration);
+        setIsPaused(true);
+        return;
+      }
+
+      // Normal scrolling
+      scrollPositionRef.current += speed * deltaTime;
+      displayRef.current.scrollTop = scrollPositionRef.current;
+
+      // Check if reached the end
+      const maxScroll = displayRef.current.scrollHeight - displayRef.current.clientHeight;
+      if (scrollPositionRef.current >= maxScroll) {
+        setIsPlaying(false);
+        return;
+      }
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      isActive = false;
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [isPlaying, isPaused, speed]);
+
+  // Handle pause countdown in a separate effect
+  useEffect(() => {
+    if (!isPaused || !pauseStartTimeRef.current) return;
+
+    let isActive = true;
+
+    const updatePauseCountdown = (currentTime) => {
+      if (!isActive) return;
+
       const pauseElapsed = (currentTime - pauseStartTimeRef.current) / 1000;
       const pauseDuration = parseFloat(currentPauseMarkerRef.current?.getAttribute('data-pause')) || 3;
       const remaining = Math.max(0, pauseDuration - pauseElapsed);
@@ -105,53 +193,20 @@ function TeleprompterDisplay({ content }) {
       if (pauseElapsed >= pauseDuration) {
         setIsPaused(false);
         pauseStartTimeRef.current = null;
-        lastTimeRef.current = currentTime;
+        currentPauseMarkerRef.current = null;
+        return;
       }
 
-      animationFrameRef.current = requestAnimationFrame(animate);
-      return;
-    }
+      requestAnimationFrame(updatePauseCountdown);
+    };
 
-    // Normal scrolling
-    scrollPositionRef.current += speed * deltaTime;
-    displayRef.current.scrollTop = scrollPositionRef.current;
+    const frameId = requestAnimationFrame(updatePauseCountdown);
 
-    // Check if reached the end
-    const maxScroll = displayRef.current.scrollHeight - displayRef.current.clientHeight;
-    if (scrollPositionRef.current >= maxScroll) {
-      setIsPlaying(false);
-      return;
-    }
-
-    animationFrameRef.current = requestAnimationFrame(animate);
-  };
-
-  const togglePlayPause = () => {
-    if (isPaused) {
-      // Resume from pause
-      setIsPaused(false);
-      pauseStartTimeRef.current = null;
-      currentPauseMarkerRef.current = null;
-    } else {
-      setIsPlaying(!isPlaying);
-      if (!isPlaying) {
-        lastTimeRef.current = null;
-      }
-    }
-  };
-
-  const handleReset = () => {
-    setIsPlaying(false);
-    setIsPaused(false);
-    scrollPositionRef.current = 0;
-    lastTimeRef.current = null;
-    pauseStartTimeRef.current = null;
-    currentPauseMarkerRef.current = null;
-    setPauseTimeRemaining(0);
-    if (displayRef.current) {
-      displayRef.current.scrollTop = 0;
-    }
-  };
+    return () => {
+      isActive = false;
+      cancelAnimationFrame(frameId);
+    };
+  }, [isPaused]);
 
   const handleSpeedChange = (e) => {
     setSpeed(parseInt(e.target.value));
