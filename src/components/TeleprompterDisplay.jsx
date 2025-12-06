@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import DOMPurify from 'dompurify';
 import './TeleprompterDisplay.css';
 
 // Constants
@@ -225,7 +226,7 @@ function TeleprompterDisplay({ content }) {
         <div
           ref={contentRef}
           className="display-content"
-          dangerouslySetInnerHTML={{ __html: content }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
         />
       </div>
 
