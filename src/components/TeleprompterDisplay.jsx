@@ -1,9 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import './TeleprompterDisplay.css';
+
+// Constants
+const LINE_HEIGHT = 24; // pixels
+const JUMP_LINES = 5;
+const DEFAULT_SPEED = 60; // pixels per second
+const MIN_SPEED = 10;
+const MAX_SPEED = 200;
+const SPEED_INCREMENT = 10;
 
 function TeleprompterDisplay({ content }) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(60); // pixels per second
+  const [speed, setSpeed] = useState(DEFAULT_SPEED);
   const [isPaused, setIsPaused] = useState(false);
   const [pauseTimeRemaining, setPauseTimeRemaining] = useState(0);
 
@@ -15,7 +23,7 @@ function TeleprompterDisplay({ content }) {
   const pauseStartTimeRef = useRef(null);
   const currentPauseMarkerRef = useRef(null);
 
-  const togglePlayPause = () => {
+  const togglePlayPause = useCallback(() => {
     setIsPaused((prevPaused) => {
       if (prevPaused) {
         // Resume from pause
@@ -32,9 +40,9 @@ function TeleprompterDisplay({ content }) {
       }
       return !prevPlaying;
     });
-  };
+  }, []);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setIsPlaying(false);
     setIsPaused(false);
     scrollPositionRef.current = 0;
@@ -45,24 +53,22 @@ function TeleprompterDisplay({ content }) {
     if (displayRef.current) {
       displayRef.current.scrollTop = 0;
     }
-  };
+  }, []);
 
-  const jumpBackward = () => {
+  const jumpBackward = useCallback(() => {
     if (!displayRef.current) return;
-    const lineHeight = 24; // Approximate line height in pixels
-    const jumpAmount = lineHeight * 5; // 5 lines
+    const jumpAmount = LINE_HEIGHT * JUMP_LINES;
     scrollPositionRef.current = Math.max(0, scrollPositionRef.current - jumpAmount);
     displayRef.current.scrollTop = scrollPositionRef.current;
-  };
+  }, []);
 
-  const jumpForward = () => {
+  const jumpForward = useCallback(() => {
     if (!displayRef.current) return;
-    const lineHeight = 24; // Approximate line height in pixels
-    const jumpAmount = lineHeight * 5; // 5 lines
+    const jumpAmount = LINE_HEIGHT * JUMP_LINES;
     const maxScroll = displayRef.current.scrollHeight - displayRef.current.clientHeight;
     scrollPositionRef.current = Math.min(maxScroll, scrollPositionRef.current + jumpAmount);
     displayRef.current.scrollTop = scrollPositionRef.current;
-  };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -74,10 +80,10 @@ function TeleprompterDisplay({ content }) {
         togglePlayPause();
       } else if (e.code === 'ArrowUp' && !isInEditor) {
         e.preventDefault();
-        setSpeed(prev => Math.min(prev + 10, 200));
+        setSpeed(prev => Math.min(prev + SPEED_INCREMENT, MAX_SPEED));
       } else if (e.code === 'ArrowDown' && !isInEditor) {
         e.preventDefault();
-        setSpeed(prev => Math.max(prev - 10, 10));
+        setSpeed(prev => Math.max(prev - SPEED_INCREMENT, MIN_SPEED));
       } else if (e.code === 'ArrowLeft' && !isInEditor) {
         e.preventDefault();
         jumpBackward();
@@ -92,7 +98,7 @@ function TeleprompterDisplay({ content }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [togglePlayPause, jumpBackward, jumpForward, handleReset]);
 
   const checkForPauseMarker = () => {
     if (!contentRef.current || !displayRef.current) return null;
@@ -208,9 +214,9 @@ function TeleprompterDisplay({ content }) {
     };
   }, [isPaused]);
 
-  const handleSpeedChange = (e) => {
+  const handleSpeedChange = useCallback((e) => {
     setSpeed(parseInt(e.target.value));
-  };
+  }, []);
 
   return (
     <div className="teleprompter-display">
@@ -242,8 +248,8 @@ function TeleprompterDisplay({ content }) {
           <label>Speed: {speed} px/s</label>
           <input
             type="range"
-            min="10"
-            max="200"
+            min={MIN_SPEED}
+            max={MAX_SPEED}
             value={speed}
             onChange={handleSpeedChange}
             className="speed-slider"

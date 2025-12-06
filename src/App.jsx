@@ -28,7 +28,16 @@ function App() {
   // Save content to localStorage whenever it changes
   useEffect(() => {
     if (content) {
-      localStorage.setItem(STORAGE_KEY, content);
+      try {
+        localStorage.setItem(STORAGE_KEY, content);
+      } catch (e) {
+        if (e.name === 'QuotaExceededError') {
+          console.error('Storage quota exceeded');
+          alert('Script is too large to save automatically. Please use the Save button to download your script.');
+        } else {
+          console.error('Error saving to localStorage:', e);
+        }
+      }
     }
   }, [content]);
 
@@ -38,7 +47,7 @@ function App() {
 
   const handleFormatChange = (format) => {
     // This can be used to apply global formatting if needed
-    console.log('Format changed:', format);
+    // Format changes are handled in the editor component
   };
 
   return (

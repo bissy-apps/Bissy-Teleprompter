@@ -106,6 +106,12 @@ function EditorPanel({ content, onContentChange, onFormatChange }) {
     fileInputRef.current?.click();
   };
 
+  const escapeHtml = (text) => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
+
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -115,13 +121,26 @@ function EditorPanel({ content, onContentChange, onFormatChange }) {
       return;
     }
 
+    // Validate file size (max 5MB)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      alert('File is too large. Maximum size is 5MB.');
+      return;
+    }
+
     const reader = new FileReader();
+
+    reader.onerror = () => {
+      alert('Error reading file. Please try again.');
+    };
+
     reader.onload = (event) => {
       const text = event.target.result;
       // Convert plain text to HTML with consistent Arial 24px formatting
+      // IMPORTANT: Escape HTML to prevent XSS attacks
       const lines = text.split('\n');
       const formattedHTML = lines
-        .map(line => `<div style="font-size: 24px; font-family: Arial;">${line || '<br>'}</div>`)
+        .map(line => `<div style="font-size: 24px; font-family: Arial;">${line ? escapeHtml(line) : '<br>'}</div>`)
         .join('');
 
       onContentChange(formattedHTML);
@@ -129,6 +148,7 @@ function EditorPanel({ content, onContentChange, onFormatChange }) {
         editorRef.current.innerHTML = formattedHTML;
       }
     };
+
     reader.readAsText(file);
 
     // Reset file input so the same file can be loaded again
