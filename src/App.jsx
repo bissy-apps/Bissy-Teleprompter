@@ -6,24 +6,21 @@ import './App.css';
 const STORAGE_KEY = 'teleprompter-content';
 
 function App() {
-  const [content, setContent] = useState('');
-
-  // Load content from localStorage on mount
-  useEffect(() => {
+  // Initialize state with lazy initialization to avoid setState in useEffect
+  const [content, setContent] = useState(() => {
     const savedContent = localStorage.getItem(STORAGE_KEY);
     if (savedContent) {
-      setContent(savedContent);
-    } else {
-      // Default sample content
-      setContent(`<div style="font-size: 24px; font-family: Arial;">Welcome to Bissy Teleprompter!</div>
+      return savedContent;
+    }
+    // Default sample content
+    return `<div style="font-size: 24px; font-family: Arial;">Welcome to Bissy Teleprompter!</div>
 <div style="font-size: 24px; font-family: Arial;"><br></div>
 <div style="font-size: 24px; font-family: Arial;">Start typing or paste your script in the editor panel on the left.</div>
 <div style="font-size: 24px; font-family: Arial;"><br></div>
 <div style="font-size: 24px; font-family: Arial;">Use the formatting tools to customize your text, and insert pause markers where needed.</div>
 <div style="font-size: 24px; font-family: Arial;"><br></div>
-<div style="font-size: 24px; font-family: Arial;">Press the Play button or Spacebar to start scrolling!</div>`);
-    }
-  }, []);
+<div style="font-size: 24px; font-family: Arial;">Press the Play button or Spacebar to start scrolling!</div>`;
+  });
 
   // Save content to localStorage whenever it changes
   useEffect(() => {
@@ -45,11 +42,6 @@ function App() {
     setContent(newContent);
   };
 
-  const handleFormatChange = (format) => {
-    // This can be used to apply global formatting if needed
-    // Format changes are handled in the editor component
-  };
-
   return (
     <div className="app">
       <header className="app-header">
@@ -63,7 +55,6 @@ function App() {
           <EditorPanel
             content={content}
             onContentChange={handleContentChange}
-            onFormatChange={handleFormatChange}
           />
         </div>
         <div className="panel display-side">

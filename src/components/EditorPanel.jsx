@@ -11,7 +11,7 @@ const FONT_FAMILIES = [
 
 const FONT_SIZES = [16, 20, 24, 28, 32, 40, 48, 60, 72, 80, 96, 120];
 
-function EditorPanel({ content, onContentChange, onFormatChange }) {
+function EditorPanel({ content, onContentChange }) {
   const [fontFamily, setFontFamily] = useState('Arial');
   const [fontSize, setFontSize] = useState(24);
   const editorRef = useRef(null);
@@ -28,7 +28,7 @@ function EditorPanel({ content, onContentChange, onFormatChange }) {
         try {
           selection.removeAllRanges();
           selection.addRange(range);
-        } catch (e) {
+        } catch {
           // Range might be invalid after content change
         }
       }
@@ -73,7 +73,6 @@ function EditorPanel({ content, onContentChange, onFormatChange }) {
     const family = e.target.value;
     setFontFamily(family);
     applyFormat('fontName', family);
-    onFormatChange({ fontFamily: family });
   };
 
   const handleFontSizeChange = (e) => {
@@ -90,7 +89,6 @@ function EditorPanel({ content, onContentChange, onFormatChange }) {
         handleInput();
       }
     }
-    onFormatChange({ fontSize: size });
   };
 
   const handleNewScript = () => {
